@@ -14,7 +14,11 @@
     git clone 
     cd ~catkin_ws && catkin_make
 
-3) Download the example bag file from here into the directoy called /bagfiles:
+3) Download the example bag file from link below and place it into a new directoy called /bagfiles:
+
+    cd src/point_cloud_playground
+    mkdir bagfiles
+    cd bagfiles
 
 https://www.notion.so/circuitlaunch/Point-Cloud-Library-9642f8fb0c9844c68c5ad63896371eef
 
@@ -26,7 +30,9 @@ Terminal 2: navigate to /point_cloud_playground/bagfiles, then enter:
 
     rosbag play example_kinect_data.bag
 
-You should see the point cloud data playing back in Rviz
+You should see the point cloud data playing back in Rviz:
+
+![image info](./assets/rviz_pc.png)
 
 
 
