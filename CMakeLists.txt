@@ -7,12 +7,16 @@ project(point_cloud_playground)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
+
 find_package(catkin REQUIRED COMPONENTS
-  pcl_ros
-  roscpp
-  rospy
-  sensor_msgs
-  std_msgs
+	dynamic_reconfigure
+	pcl_conversions
+	pcl_ros
+	roscpp
+	rospy
+	roslint
+	sensor_msgs
+	message_generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -49,11 +53,8 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
+
 #   Message2.msg
-# )
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -72,7 +73,8 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate added messages and services with any dependencies listed here
 # generate_messages(
 #   DEPENDENCIES
-#   sensor_msgs#   std_msgs
+#   std_msgs
+#   sensor_msgs
 # )
 
 ################################################
@@ -105,10 +107,10 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES point_cloud_playground
-#  CATKIN_DEPENDS pcl_ros roscpp rospy sensor_msgs std_msgs
-#  DEPENDS system_lib
+ INCLUDE_DIRS include
+ LIBRARIES point_cloud_playground
+ CATKIN_DEPENDS pcl_ros roscpp rospy sensor_msgs std_msgs
+ #DEPENDS system_lib
 )
 
 ###########
@@ -137,6 +139,13 @@ include_directories(
 ## The recommended prefix ensures that target names across packages don't collide
 # add_executable(${PROJECT_NAME}_node src/point_cloud_playground_node.cpp)
 
+#add_executable(${PROJECT_NAME}_cloud_transformer src/cloud_transformer.cpp)
+#add_executable(${PROJECT_NAME}_segmentation src/segmentation.cpp)
+#add_executable(${PROJECT_NAME}_feature_extractor src/feature_extractor.cpp)
+add_executable(process_pcl src/process_pcl.cpp)
+# add_executable(check_plane src/check_plane.cpp)
+
+
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -148,9 +157,13 @@ include_directories(
 # add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(${PROJECT_NAME}_node
-#   ${catkin_LIBRARIES}
-# )
+target_link_libraries(process_pcl
+  ${catkin_LIBRARIES}
+  ${PCL_LIBRARIES}
+)
+
+# target_link_libraries(check_plane ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
 
 #############
 ## Install ##

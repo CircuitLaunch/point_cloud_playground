@@ -12,8 +12,8 @@
       leaf_size: 0.01
     </rosparam>
   </node>
-
-  <!-- Estimate point normals -->
+  
+  <!-- Estimate point normals 
   <node pkg="nodelet" type="nodelet" name="normal_estimation" args="load pcl/NormalEstimation pcl_manager" output="screen">
     <remap from="~input" to="/voxel_grid/output" />
     <rosparam>
@@ -23,9 +23,9 @@
       # Set the spatial locator. Possible values are: 0 (ANN), 1 (FLANN), 2 (organized)
       spatial_locator: 0
     </rosparam>
-  </node>
+  </node>-->
 
-  <!-- Segment the floor plane -->
+  <!-- Segment the floor plane 
   <node pkg="nodelet" type="nodelet" name="planar_segmentation" args="load pcl/SACSegmentationFromNormals pcl_manager" output="screen">
     <remap from="~input"   to="/voxel_grid/output" />
     <remap from="~normals" to="/normal_estimation/output" />
@@ -61,27 +61,11 @@
       normal_distance_weight: 0.01
       eps_angle: 0.009
     </rosparam>
-  </node>
-
-  <node pkg="nodelet" type="nodelet" name="extract_plane_indices" args="load pcl/ExtractIndices pcl_manager" output="screen">
-    <remap from="~input"   to="/voxel_grid/output" />
-    <remap from="~indices" to="/planar_segmentation/inliers" />
-    <rosparam>
-      negative: true
-    </rosparam>
-  </node>
-
-  <node pkg="nodelet" type="nodelet" name="extract_plane_normal_indices" args="load pcl/ExtractIndices pcl_manager" output="screen">
-    <remap from="~input"   to="/normal_estimation/output" />
-    <remap from="~indices" to="/planar_segmentation/inliers" />
-    <rosparam>
-      negative: true
-    </rosparam>
-  </node>
+  </node>-->
 
   <!-- Segment a cylinder -->
   <node pkg="nodelet" type="nodelet" name="cylinder_segmentation" args="load pcl/SACSegmentationFromNormals pcl_manager" output="screen">
-    <remap from="~input"   to="/extract_plane_indices/output" />
+    <remap from="~input"   to="/voxel_grid/output" />
     <remap from="~normals" to="/extract_plane_normal_indices/output" />
     <rosparam>
       model_type: 5
@@ -97,7 +81,7 @@
     </rosparam>
   </node>
 
-  <node pkg="nodelet" type="nodelet" name="extract_cylinder_indices" args="load pcl/ExtractIndices pcl_manager" output="screen">
+ <!-- <node pkg="nodelet" type="nodelet" name="extract_cylinder_indices" args="load pcl/ExtractIndices pcl_manager" output="screen">
     <remap from="~input"   to="/extract_plane_indices/output" />
     <remap from="~indices" to="/cylinder_segmentation/inliers" />
     <rosparam>
@@ -105,14 +89,14 @@
     </rosparam>
   </node>
 
-  <!-- Run an outlier filter to clean the data -->
+   Run an outlier filter to clean the data 
   <node pkg="nodelet" type="nodelet" name="outlier_filter" args="load pcl/StatisticalOutlierRemoval pcl_manager" output="screen">
     <remap from="~input"   to="/extract_cylinder_indices/output" />
     <rosparam>
       mean_k: 75
       stddev: 0.1
     </rosparam>
-  </node>
+  </node>-->
 
   <!-- RViz -->
   <node type="rviz" name="pcl_rviz" pkg="rviz" args="-d $(find point_cloud_playground)/rviz/cylinder_segmentation.rviz"/>
