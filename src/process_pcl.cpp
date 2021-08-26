@@ -17,6 +17,11 @@
 #include <pcl/sample_consensus/method_types.h>
 #include <pcl/sample_consensus/model_types.h>
 #include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/segmentation/extract_clusters.h>
+
+typedef pcl::PointXYZ PointT;
+
 
 class SubscribeProcessPublish
 {
@@ -47,6 +52,13 @@ public:
 		// voxelGrid.filter(*cloudVoxel);
 		// //this->publisher.publish (*cloudVoxel);
 
+        // Perform voxel grid downsampling filtering
+        pcl::PCLPointCloud2::Ptr cloudVoxel (new pcl::PCLPointCloud2 ());
+        pcl::VoxelGrid<pcl::PCLPointCloud2> sor;
+        sor.setInputCloud (cloud_msg);
+        sor.setLeafSize (0.01, 0.01, 0.01);
+        sor.filter (* cloudVoxel);
+
         //FILTER ALONG CAM Z AXIS
 		pcl::PCLPointCloud2::Ptr floorRemoved (new pcl::PCLPointCloud2 ());
 		// define a PassThrough
@@ -56,7 +68,7 @@ public:
 		// filter along z-axis
 		pass.setFilterFieldName("z");
 		// set z-limits
-		pass.setFilterLimits(0.0, 1.0);
+		pass.setFilterLimits(0.2, 1.0);
 		pass.filter(*floorRemoved);
 
         pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
@@ -89,31 +101,128 @@ public:
                                             << coefficients->values[3] << std::endl;
 
 
-
-
         // Create the filtering object
         pcl::ExtractIndices<pcl::PointXYZ> extract;
 
         //extract.setInputCloud (xyzCloudPtrFiltered);
         extract.setInputCloud (cloud);
         extract.setIndices (inliers);
-        extract.setNegative (false);
+        extract.setNegative (true);
         extract.filter (*cloud);
 
-        this->publisher.publish (*cloud);
-        // std::cerr << "Model inliers: " << inliers->indices.size () << std::endl;
-        // for (std::size_t i = 0; i < inliers->indices.size (); ++i)
-        // for (const auto& idx: inliers->indices)
-        //     std::cerr << idx << "    " << cloud->points[idx].x << " "
-        //                             << cloud->points[idx].y << " "
-        //                             << cloud->points[idx].z << std::endl;
+        //this->publisher.publish (*cloud);
+
+        //CLOUD CLUSTERING SECTION
+        // Create the KdTree object for the search method of the extraction
+        pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
+        tree->setInputCloud (cloud);
+
+        // create the extraction object for the clusters
+        std::vector<pcl::PointIndices> cluster_indices;
+        pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
+        // specify euclidean cluster parameters
+        ec.setClusterTolerance (0.005); // 2cm
+        ec.setMinClusterSize (50);
+        ec.setMaxClusterSize (2500);
+        ec.setSearchMethod (tree);
+        ec.setInputCloud (cloud);
+        // exctract the indices pertaining to each cluster and store in a vector of pcl::PointIndices
+        ec.extract (cluster_indices);
+
+        // declare the output variable instances
+        sensor_msgs::PointCloud2 output;
+        pcl::PCLPointCloud2 outputPCL;
+
+        // here, cluster_indices is a vector of indices for each cluster. iterate through each indices object to work with them seporately
+        for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
+        {
+
+            // create a new clusterData message object
+            //obj_recognition::ClusterData clusterData;
+
+            // create a pcl object to hold the extracted cluster
+            pcl::PointCloud<pcl::PointXYZ> *cluster = new pcl::PointCloud<pcl::PointXYZ>;
+            pcl::PointCloud<pcl::PointXYZ>::Ptr clusterPtr (cluster);
+
+            // now we are in a vector of indices pertaining to a single cluster.
+            // Assign each point corresponding to this cluster in xyzCloudPtrPassthroughFiltered a specific color for identification purposes
+            for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); ++pit)
+            {
+            clusterPtr->points.push_back(cloud->points[*pit]);
+
+                }
 
 
-		// // cascade the floor removal filter and define a container for floorRemoved	
-		// pcl::PCLPointCloud2::Ptr floorRemoved (new pcl::PCLPointCloud2 ());
-		
+            // log the position of the cluster
+            //clusterData.position[0] = (*cloudPtr).data[0];
+            //clusterData.position[1] = (*cloudPtr).points.back().y;
+            //clusterData.position[2] = (*cloudPtr).points.back().z;
+            //std::string info_string = string(cloudPtr->points.back().x);
+            //printf(clusterData.position[0]);
 
-				
+            // convert to pcl::PCLPointCloud2
+            pcl::toPCLPointCloud2( *clusterPtr ,outputPCL);
+
+            // Convert to ROS data type
+            pcl_conversions::fromPCL(outputPCL, output);
+            output.header.frame_id = "depth_camera_link" ;
+            
+            this->publisher.publish (output);
+            //std::cerr << "Publishing cluster: " << *it << " ";
+            ros::Duration(0.1).sleep(); // sleep for half a second
+
+            // add the cluster to the array message
+            //clusterData.cluster = output;
+            //CloudClusters.clusters.push_back(output);
+
+        }
+
+  
+        // //CYLINDER SEGMENTATION SECTION////
+
+        // //pcl::ExtractIndices<PointT> extract;
+        // pcl::ExtractIndices<pcl::Normal> extract_normals;
+        // pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT> ());
+        // pcl::PointCloud<pcl::Normal>::Ptr cloud_normals (new pcl::PointCloud<pcl::Normal>);
+        // pcl::NormalEstimation<PointT, pcl::Normal> ne;
+
+        // // Estimate point normals
+        // ne.setSearchMethod (tree);
+        // ne.setInputCloud (cloud);
+        // ne.setKSearch (50);
+        // ne.compute (*cloud_normals);
+
+        // pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg1; 
+        // // Create the segmentation object for cylinder segmentation and set all the parameters
+        // seg1.setOptimizeCoefficients (true);
+        // seg1.setModelType (pcl::SACMODEL_CYLINDER);
+        // seg1.setMethodType (pcl::SAC_RANSAC);
+        // seg1.setNormalDistanceWeight (0.1);
+        // seg1.setMaxIterations (10000);
+        // seg1.setDistanceThreshold (0.05);
+        // seg1.setRadiusLimits (0.0, 0.10);
+        // seg1.setInputCloud (cloud);
+        // seg1.setInputNormals (cloud_normals);
+
+        // // Obtain the cylinder inliers and coefficients
+        // pcl::PointIndices::Ptr inliers_cylinder (new pcl::PointIndices);
+        // pcl::ModelCoefficients::Ptr coefficients_cylinder (new pcl::ModelCoefficients);
+        // seg1.segment (*inliers_cylinder, *coefficients_cylinder);
+
+        // if (inliers->indices.size () == 0)
+        // {
+        //     PCL_ERROR ("Could not estimate a planar model for the given dataset.");
+        // }
+
+        // std::cerr << "Cylinder coefficients: " << *coefficients_cylinder << std::endl;
+
+        // extract.setInputCloud (cloud);
+        // extract.setIndices (inliers_cylinder);
+        // extract.setNegative (false);
+        // extract.filter (*cloud);
+
+        // this->publisher.publish (*cloud);
+
     }
 
 private:
